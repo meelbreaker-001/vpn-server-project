@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>vpnserver — Python-controlled WireGuard VPN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0a0e16;
+    --surface: #11182a;
+    --surface-2: #161f36;
+    --line: #232c44;
+    --teal: #5eead4;
+    --teal-dim: #2dd4bf33;
+    --amber: #f0b84d;
+    --text: #e7ecf6;
+    --muted: #8a93ab;
+    --mono: 'IBM Plex Mono', monospace;
+    --display: 'Space Grotesk', sans-serif;
+    --body: 'Inter', sans-serif;
+  }
+
+  *{ margin:0; padding:0; box-sizing:border-box; }
+
+  html{ scroll-behavior:smooth; }
+
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    line-height: 1.6;
+    background-image:
+      radial-gradient(circle at 15% 0%, #11203a 0%, transparent 45%),
+      radial-gradient(circle at 85% 20%, #1a1430 0%, transparent 40%);
+  }
+
+  a{ color: var(--teal); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+
+  ::selection{ background: var(--teal-dim); color: var(--teal); }
+
+  .wrap{ max-width: 1040px; margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- nav ---------- */
+  nav{
+    position: sticky; top:0; z-index: 50;
+    backdrop-filter: blur(10px);
+    background: rgba(10,14,22,0.75);
+    border-bottom: 1px solid var(--line);
+  }
+  nav .wrap{ display:flex; align-items:center; justify-content:space-between; height:64px; }
+  .brand{ font-family: var(--mono); font-weight:600; font-size:15px; letter-spacing:0.02em; color:var(--text); display:flex; align-items:center; gap:8px;}
+  .brand .dot{ width:8px; height:8px; border-radius:50%; background:var(--teal); box-shadow:0 0 8px var(--teal); animation: pulse 2.2s ease-in-out infinite; }
+  nav ul{ list-style:none; display:flex; gap:28px; font-family:var(--mono); font-size:13px; }
+  nav ul a{ color: var(--muted); }
+  nav ul a:hover{ color: var(--teal); text-decoration:none; }
+  .nav-cta{
+    font-family: var(--mono); font-size:13px; padding:8px 16px;
+    border:1px solid var(--teal); border-radius:4px; color:var(--teal) !important;
+  }
+  .nav-cta:hover{ background: var(--teal-dim); text-decoration:none; }
+
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:0.35;} }
+
+  /* ---------- hero ---------- */
+  header.hero{ padding: 96px 0 64px; position:relative; overflow:hidden; }
+  .eyebrow{
+    font-family: var(--mono); font-size:12px; letter-spacing:0.12em; text-transform:uppercase;
+    color: var(--teal); display:flex; align-items:center; gap:10px; margin-bottom:22px;
+  }
+  .eyebrow::before{ content:""; width:24px; height:1px; background:var(--teal); }
+
+  h1{
+    font-family: var(--display); font-weight:700;
+    font-size: clamp(36px, 6vw, 64px); line-height:1.05;
+    letter-spacing:-0.02em; max-width: 760px;
+  }
+  h1 span{ color: var(--teal); }
+
+  .lede{
+    margin-top:22px; max-width:560px; font-size:17px; color: var(--muted);
+  }
+
+  .hero-actions{ margin-top:34px; display:flex; gap:14px; flex-wrap:wrap; }
+  .btn{
+    font-family: var(--mono); font-size:14px; padding:13px 22px; border-radius:6px;
+    display:inline-flex; align-items:center; gap:8px; transition: all .15s ease;
+  }
+  .btn-primary{ background: var(--teal); color:#06140f !important; font-weight:600; text-decoration:none; }
+  .btn-primary:hover{ background:#7ff2e0; text-decoration:none; transform: translateY(-1px); }
+  .btn-ghost{ border:1px solid var(--line); color: var(--text) !important; text-decoration:none; }
+  .btn-ghost:hover{ border-color: var(--teal); text-decoration:none; }
+
+  /* ---------- tunnel visualization (signature element) ---------- */
+  .tunnel-stage{
+    margin-top: 72px; border:1px solid var(--line); border-radius:12px;
+    background: linear-gradient(180deg, var(--surface), var(--bg));
+    padding: 38px 24px 30px;
+    position: relative;
+  }
+  .tunnel-stage .label-row{
+    display:flex; justify-content:space-between; font-family:var(--mono);
+    font-size:12px; color:var(--muted); margin-bottom: 26px;
+  }
+  .tunnel-stage .label-row b{ color:var(--text); font-weight:500; }
+
+  .tunnel-svg{ width:100%; height:auto; display:block; }
+
+  .tunnel-caption{
+    margin-top: 22px; text-align:center; font-family: var(--mono); font-size:12px; color: var(--muted);
+  }
+  .tunnel-caption b{ color: var(--teal); }
+
+  /* ---------- sections ---------- */
+  section{ padding: 86px 0; border-top: 1px solid var(--line); }
+  .section-head{ margin-bottom: 48px; max-width:560px; }
+  .section-head .eyebrow{ margin-bottom:14px; }
+  h2{
+    font-family: var(--display); font-weight:600; font-size: clamp(26px, 4vw, 36px);
+    letter-spacing:-0.01em;
+  }
+  .section-head p{ color: var(--muted); margin-top:14px; font-size:15.5px; }
+
+  /* feature grid */
+  .grid{ display:grid; grid-template-columns: repeat(3, 1fr); gap:1px; background: var(--line); border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .card{ background: var(--surface); padding: 28px 24px; }
+  .card .idx{ font-family: var(--mono); font-size:12px; color: var(--teal); margin-bottom:14px; }
+  .card h3{ font-family: var(--display); font-size:17px; font-weight:600; margin-bottom:10px; }
+  .card p{ font-size:14px; color: var(--muted); }
+
+  /* architecture / layers */
+  .layers{ display:flex; flex-direction:column; gap:0; border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  .layer{
+    display:grid; grid-template-columns: 200px 1fr; gap:24px; padding:22px 26px;
+    border-bottom:1px solid var(--line); background: var(--surface);
+  }
+  .layer:last-child{ border-bottom:none; }
+  .layer:nth-child(even){ background: var(--surface-2); }
+  .layer .name{ font-family: var(--mono); font-size:13px; color: var(--teal); display:flex; align-items:center; }
+  .layer .desc{ font-size:14.5px; color: var(--muted); display:flex; align-items:center; }
+  .layer .desc code{ font-family:var(--mono); color:var(--text); background:#0008; padding:2px 6px; border-radius:4px; font-size:13px; }
+
+  /* quickstart */
+  .codebox{
+    background:#070a11; border:1px solid var(--line); border-radius:10px;
+    font-family: var(--mono); font-size:13.5px; overflow:hidden;
+  }
+  .codebox .bar{ display:flex; gap:6px; padding:12px 16px; border-bottom:1px solid var(--line); }
+  .codebox .bar span{ width:10px; height:10px; border-radius:50%; background:#2c3654; }
+  .codebox pre{ padding:22px 24px; overflow-x:auto; color:#cdd6ec; line-height:1.8; }
+  .codebox .c1{ color:var(--muted); }
+  .codebox .c2{ color: var(--teal); }
+  .codebox .c3{ color: var(--amber); }
+
+  /* footer */
+  footer{ padding: 56px 0; border-top:1px solid var(--line); }
+  footer .wrap{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
+  footer .f-left{ font-family: var(--mono); font-size:12.5px; color: var(--muted); }
+  footer .f-links{ display:flex; gap:22px; font-family:var(--mono); font-size:13px; }
+  footer .f-links a{ color: var(--muted); }
+  footer .f-links a:hover{ color: var(--teal); }
+
+  @media (max-width: 760px){
+    .grid{ grid-template-columns: 1fr; }
+    .layer{ grid-template-columns: 1fr; gap:6px; }
+    nav ul{ display:none; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .dot-anim, .pulse-anim, .brand .dot{ animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand"><span class="dot"></span>vpnserver</div>
+    <ul>
+      <li><a href="#how">How it works</a></li>
+      <li><a href="#architecture">Architecture</a></li>
+      <li><a href="#start">Quick start</a></li>
+    </ul>
+    <a class="nav-cta" href="https://github.com/" target="_blank" rel="noopener">View on GitHub →</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Internship Project · WireGuard + Python</div>
+    <h1>A VPN server you can <span>read, test, and reason about</span> end to end.</h1>
+    <p class="lede">
+      vpnserver is a Python control plane around WireGuard — it generates keys, allocates
+      addresses, opens the tunnel, and exposes the whole thing through a small REST API.
+      The crypto is WireGuard's. The orchestration is yours.
+    </p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="https://github.com/" target="_blank" rel="noopener">Clone the repo</a>
+      <a class="btn btn-ghost" href="#how">See how it works</a>
+    </div>
+
+    <!-- Signature element: animated encrypted tunnel -->
+    <div class="tunnel-stage">
+      <div class="label-row">
+        <span>CLIENT <b>laptop.peer</b></span>
+        <span><b>wg0</b> · UDP 51820</span>
+        <span>SERVER <b>10.8.0.1</b></span>
+      </div>
+      <svg class="tunnel-svg" viewBox="0 0 920 160" xmlns="http://www.w3.org/2000/svg">
+        <!-- tunnel walls -->
+        <path d="M40,40 C300,90 620,90 880,40" stroke="#232c44" stroke-width="1" fill="none"/>
+        <path d="M40,120 C300,70 620,70 880,120" stroke="#232c44" stroke-width="1" fill="none"/>
+        <!-- center path (guide) -->
+        <path id="centerpath" d="M40,80 C300,80 620,80 880,80" stroke="#1a2238" stroke-width="1" fill="none" stroke-dasharray="2 6"/>
+        <!-- endpoints -->
+        <circle cx="40" cy="80" r="6" fill="#0a0e16" stroke="#5eead4" stroke-width="2"/>
+        <circle cx="880" cy="80" r="6" fill="#0a0e16" stroke="#5eead4" stroke-width="2"/>
+        <text x="40" y="60" fill="#8a93ab" font-family="IBM Plex Mono" font-size="11">client</text>
+        <text x="848" y="60" fill="#8a93ab" font-family="IBM Plex Mono" font-size="11">server</text>
+
+        <!-- encrypted packet traveling through tunnel -->
+        <circle r="5" fill="#5eead4" class="pulse-anim">
+          <animateMotion dur="3.2s" repeatCount="indefinite" rotate="auto">
+            <mpath href="#centerpath"/>
+          </animateMotion>
+        </circle>
+        <circle r="11" fill="none" stroke="#5eead4" stroke-width="1" opacity="0.5">
+          <animateMotion dur="3.2s" repeatCount="indefinite" rotate="auto">
+            <mpath href="#centerpath"/>
+          </animateMotion>
+          <animate attributeName="r" values="6;14;6" dur="1.6s" repeatCount="indefinite"/>
+          <animate attributeName="opacity" values="0.6;0;0.6" dur="1.6s" repeatCount="indefinite"/>
+        </circle>
+
+        <!-- lock glyph midpoint -->
+        <g transform="translate(445,55)">
+          <rect x="0" y="10" width="20" height="16" rx="3" fill="#11182a" stroke="#5eead4" stroke-width="1.4"/>
+          <path d="M4,10 V6 a6,6 0 0 1 12,0 V10" fill="none" stroke="#5eead4" stroke-width="1.4"/>
+        </g>
+      </svg>
+      <div class="tunnel-caption">Every packet leaving the client is wrapped in <b>ChaCha20-Poly1305</b> before it touches the public network.</div>
+    </div>
+  </div>
+</header>
+
+<section id="how">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Three layers, each doing one job</h2>
+      <p>The project deliberately doesn't reinvent cryptography — it wraps a reviewed implementation in a control layer that's small enough to actually understand.</p>
+    </div>
+    <div class="grid">
+      <div class="card">
+        <div class="idx">01 · tunnel</div>
+        <h3>WireGuard</h3>
+        <p>Handles key exchange, encryption, and packet routing. Battle-tested, ~4,000 lines, nothing custom.</p>
+      </div>
+      <div class="card">
+        <div class="idx">02 · control</div>
+        <h3>core/</h3>
+        <p>Thin Python wrappers around <code style="font-family:var(--mono);color:var(--text)">wg</code> and <code style="font-family:var(--mono);color:var(--text)">iptables</code> — the only layer that touches root.</p>
+      </div>
+      <div class="card">
+        <div class="idx">03 · application</div>
+        <h3>peers/ + api/</h3>
+        <p>Pure Python peer storage, IP allocation, and a FastAPI REST surface. Fully unit-testable, no root needed.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Architecture</div>
+      <h2>What happens when you add a peer</h2>
+      <p>One request triggers a short, traceable chain — no hidden state.</p>
+    </div>
+    <div class="layers">
+      <div class="layer">
+        <div class="name">POST /peers</div>
+        <div class="desc">Client requests a new peer by name via the REST API.</div>
+      </div>
+      <div class="layer">
+        <div class="name">keys.py</div>
+        <div class="desc">Generates a fresh <code>Curve25519</code> keypair and preshared key.</div>
+      </div>
+      <div class="layer">
+        <div class="name">manager.py</div>
+        <div class="desc">Allocates the next free IP from <code>10.8.0.0/24</code> and persists the peer record.</div>
+      </div>
+      <div class="layer">
+        <div class="name">wireguard.py</div>
+        <div class="desc">Hot-adds the peer to the running <code>wg0</code> interface — no restart needed.</div>
+      </div>
+      <div class="layer">
+        <div class="name">qrcode_gen.py</div>
+        <div class="desc">Returns a config file and QR code the client scans into the WireGuard app.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="start">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Quick start</div>
+      <h2>Running locally</h2>
+      <p>Clone, install, and bring the API up in under a minute.</p>
+    </div>
+    <div class="codebox">
+      <div class="bar"><span></span><span></span><span></span></div>
+      <pre><span class="c1"># clone and enter the project</span>
+git clone https://github.com/your-username/vpn-server-project.git
+cd vpn-server-project
+
+<span class="c1"># set up environment</span>
+python -m venv venv <span class="c2">&&</span> source venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+
+<span class="c1"># run the API</span>
+uvicorn vpnserver.api.app:app --host <span class="c3">0.0.0.0</span> --port <span class="c3">8000</span></pre>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="f-left">vpnserver · Python control plane for WireGuard · MIT License</div>
+    <div class="f-links">
+      <a href="https://github.com/" target="_blank" rel="noopener">GitHub</a>
+      <a href="#how">Docs</a>
+      <a href="#architecture">Architecture</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
