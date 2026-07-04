@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.conf
+*.key
+*.pub
+*.pem
+peers.db
+*.log
+.pytest_cache/
+.DS_Store
